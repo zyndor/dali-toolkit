@@ -297,7 +297,7 @@ void CalculateGeometry(const ViewProjection& viewProjection, const Matrix& model
   textParameters.topLeft.z = 0.f;
 }
 
-void CreateTextGeometryAndTexture(TextParameters& parameters, TextCacheItem& textCacheItem, bool& isRgbaColorText)
+void CreateTextGeometryAndTexture(TextParameters& parameters, TextCacheItem& textCacheItem, bool generateBarycentrics, bool& isRgbaColorText)
 {
   // TODO: in the long term, some of this could be rolled into MakeTexturedQuadGeometry(), however
   // 1, this is not a unit quad (maybe it could be; we're baking the size into vertex positions and set the Actor property Size to one);
@@ -307,23 +307,49 @@ void CreateTextGeometryAndTexture(TextParameters& parameters, TextCacheItem& tex
 
   std::vector<uint8_t> bytes;
   size_t stride = 0;
-  struct Vertex
+  if (generateBarycentrics)
   {
-    Vector3 position;
-    Vector2 textureCoord;
-  };
+    property.Add("aBarycentric", Property::VECTOR3);
 
-  Vertex vertices[] =
+    struct Vertex
+    {
+      Vector3 position;
+      Vector2 textureCoord;
+      Vector3 barycentric;
+    };
+
+    Vertex vertices[] =
+    {
+      { parameters.bottomRight, Vector2(0.f, 1.f), Vector3::XAXIS },
+      { parameters.bottomLeft, Vector2(1.f, 1.f), Vector3::ZAXIS },
+      { parameters.topRight, Vector2(0.f, 0.f), Vector3::YAXIS },
+      { parameters.topLeft, Vector2(1.f, 0.f), Vector3::XAXIS }
+    };
+
+    bytes.resize(sizeof(vertices));
+    std::memcpy(bytes.data(), vertices, sizeof(vertices));
+    stride = sizeof(Vertex);
+  }
+  else
   {
-    { parameters.bottomRight, Vector2(0.f, 1.f) },
-    { parameters.bottomLeft, Vector2(1.f, 1.f) },
-    { parameters.topRight, Vector2(0.f, 0.f) },
-    { parameters.topLeft, Vector2(1.f, 0.f) }
-  };
+    struct Vertex
+    {
+      Vector3 position;
+      Vector2 textureCoord;
+    };
 
-  bytes.resize(sizeof(vertices));
-  std::memcpy(bytes.data(), vertices, sizeof(vertices));
-  stride = sizeof(Vertex);
+    Vertex vertices[] =
+    {
+      { parameters.bottomRight, Vector2(0.f, 1.f) },
+      { parameters.bottomLeft, Vector2(1.f, 1.f) },
+      { parameters.topRight, Vector2(0.f, 0.f) },
+      { parameters.topLeft, Vector2(1.f, 0.f) }
+    };
+
+    bytes.resize(sizeof(vertices));
+    std::memcpy(bytes.data(), vertices, sizeof(vertices));
+    stride = sizeof(Vertex);
+  }
 
   VertexBuffer vertexBuffer = VertexBuffer::New(property);
   vertexBuffer.SetData(bytes.data(), bytes.size() / stride);

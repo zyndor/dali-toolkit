@@ -18,6 +18,7 @@
  */
 
 // INTERNAL INCLUDES
+#include "dali-scene-loader/public-api/lighting-mode.h"
 #include "dali-scene-loader/public-api/customization.h"
 #include "dali-scene-loader/public-api/matrix-stack.h"
 #include "dali-scene-loader/public-api/resource-bundle.h"
@@ -136,9 +137,9 @@ struct DALI_SCENE_LOADER_API ConstraintRequest
 };
 
 /**
- * @brief Defines a node, consisting of a name, a transform, a size, a list of child nodes,
- *  and slots for customization and rendering logic, which are mutually exclusive in the
- *  current implementation.
+ * @brief Defines a node, consisting of a name, a transform, a size, a lighting mode
+ *  (applied recursively), a list of child nodes, and slots for customization and
+ *  rendering logic, which are mutually exclusive in the current implementation.
  */
 struct DALI_SCENE_LOADER_API NodeDefinition
 {
@@ -235,6 +236,8 @@ public: // DATA
   Vector3 mSize = Vector3::ONE;
 
   bool mIsVisible = true;
+
+  LightingMode::Type mLightingMode = LightingMode::UNLIT;
 
   std::unique_ptr<Renderable> mRenderable;
   std::unique_ptr<CustomizationDefinition> mCustomization;

@@ -40,6 +40,14 @@ struct DALI_SCENE_LOADER_API Skinning
    */
   static const std::string BONE_UNIFORM_NAME;
 
+  /*
+   * @brief For each element in the bone transform uniform array
+   *  in the @a source, in the [0, min(MAX_JOINTS, first that doesn't exist)) range,
+   *  it creates an EqualsTo constraint for @a target.
+   *  I.e. subsequent changes to @a source bone uniforms are applied to @a target.
+   */
+  static void HelpConstrainBoneTransforms(Shader source, Shader target);
+
   Skinning() = delete;
 };
 

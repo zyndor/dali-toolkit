@@ -235,6 +235,8 @@ struct DALI_SCENE_LOADER_API MeshDefinition
   MeshGeometry Load(RawData&& raw) const;
 
 public: // DATA
+  static bool sGenerateBarycentrics;
+
   uint32_t mFlags = 0x0;
   Geometry::Type mPrimitiveType = Geometry::TRIANGLES;
   std::string mUri;

@@ -20,6 +20,7 @@
  // INTERNAL INCLUDES
 #include "dali-scene-loader/public-api/api.h"
 #include "dali-scene-loader/public-api/animation-definition.h"
+#include "dali-scene-loader/public-api/lighting-mode.h"
 #include "dali-scene-loader/public-api/text-cache-item.h"
 #include "dali-scene-loader/public-api/customization.h"
 #include "dali-scene-loader/public-api/string-callback.h"

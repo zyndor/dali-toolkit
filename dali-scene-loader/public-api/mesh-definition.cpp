@@ -518,6 +518,8 @@ void MeshDefinition::RawData::Attrib::AttachBuffer(Geometry& g) const
   g.AddVertexBuffer(attribBuffer);
 }
 
+bool MeshDefinition::sGenerateBarycentrics = false;
+
 bool MeshDefinition::IsQuad() const
 {
   return CaseInsensitiveStringCompare(QUAD, mUri);
@@ -621,6 +623,37 @@ MeshDefinition::RawData
     }
 
     raw.mAttribs.push_back({ "aPosition", Property::VECTOR3, numVector3, std::move(buffer) });
+
+    if (sGenerateBarycentrics)
+    {
+      std::vector<uint8_t>(bufferSize).swap(buffer);
+
+      auto modNumVector3 = numVector3 % 3;
+      Vector3* v3Buffer = reinterpret_cast<Vector3*>(buffer.data());
+      for (auto i1 = v3Buffer + numVector3 - modNumVector3; v3Buffer != i1;)
+      {
+        *v3Buffer = Vector3::XAXIS;
+        ++v3Buffer;
+        *v3Buffer = Vector3::YAXIS;
+        ++v3Buffer;
+        *v3Buffer = Vector3::ZAXIS;
+        ++v3Buffer;
+      }
+
+      switch (modNumVector3)
+      {
+      case 2:
+        *v3Buffer = Vector3::XAXIS;
+        ++v3Buffer;
+        // intentional fall-through
+      case 1:
+        *v3Buffer = Vector3::YAXIS;
+        // intentional fall-through
+      case 0:
+        break;
+      }
+      raw.mAttribs.push_back({ "aBarycentric", Property::VECTOR3, numVector3, std::move(buffer) });
+    }
   }
 
   const auto isTriangles = mPrimitiveType == Geometry::TRIANGLES;
@@ -845,7 +878,8 @@ MeshGeometry MeshDefinition::Load(RawData&& raw) const
 
   if (IsQuad())  // TODO: do this in raw data; provide MakeTexturedQuadGeometry() that only creates buffers.
   {
-    auto options = MaskMatch(mFlags, FLIP_UVS_VERTICAL) ? TexturedQuadOptions::FLIP_VERTICAL : 0;
+    auto options = (MaskMatch(mFlags, FLIP_UVS_VERTICAL) ? TexturedQuadOptions::FLIP_VERTICAL : 0) |
+      (sGenerateBarycentrics ? TexturedQuadOptions::GENERATE_BARYCENTRICS : 0);
     meshGeometry.geometry = MakeTexturedQuadGeometry(options);
   }
   else

@@ -178,6 +178,56 @@ DALI_SCENE_LOADER_API void SetActorCentered(Actor a)
   a.SetProperty(Actor::Property::PARENT_ORIGIN, ParentOrigin::CENTER);
 }
 
+/*
+ * @brief Creates a copy of the given texture set, by creating a new instance and
+ *  copying all Texture and Sampler references from it.
+ */
+DALI_SCENE_LOADER_API TextureSet CloneTextures(TextureSet ts);
+
+namespace CloneOptions
+{
+using Type = uint32_t;
+
+enum Values: Type
+{
+  NONE = 0x00,
+
+  OMIT_TEXTURES = 0x01,   // Do not create TextureSet and share Texture references (Renderer).
+
+  OMIT_RENDERERS = 0x10,  // Do not clone Renderers (Actor).
+  NO_RECURSE = 0x20,      // Do not clone children (Actor).
+  CONSTRAIN_XFORM = 0x40, // Constrain the position and orientation and scale of the clone to the original.
+  CONSTRAIN_VISIBILITY = 0x80, // Constrain the visibility of the clone to the original.
+  CONSTRAIN_SIZE = 0x100, // Constrain the size of the clone to the original.
+
+  // Local additions to CloneOptions should start at this value; consider all preceding ones reserved.
+  FIRST_USER_OPTION = 0x200,
+};
+
+}
+
+/*
+ * @brief Creates a new Renderer with all conceivable properties of the given
+ *  Renderer @a r. A new TextureSet will be created if the original had one and
+ *  CloneOptions::OMIT_TEXTURES was not specified, but all Texture, Shader and
+ *  Geometry references are shared between @a r and the new instance.
+ * @param r The Renderer to clone.
+ * @param cloneOptions A bitmask constructed from the combination of CloneOptions
+ *  values (plus any user defined values).
+ */
+DALI_SCENE_LOADER_API Renderer CloneRenderer(Renderer r, CloneOptions::Type cloneOptions = CloneOptions::NONE);
+
+/*
+ * @brief Create a new actor with all conceivable properties and Renderers of
+ *  the given actor @a a.
+ *  Will clone all children unless CloneOptions::NO_RECURSE was set.
+ *  Will clone Renderers unless CloneOptions::OMIT_RENDERERS was set.
+ * @param a The Actor to clone.
+ * @param cloneOptions A bitmask constructed from the combination of CloneOptions
+ *  values (plus any user defined values).
+ */
+DALI_SCENE_LOADER_API Actor CloneActor(Actor a, CloneOptions::Type cloneOptions = CloneOptions::NONE);
+
 namespace TexturedQuadOptions
 {
 using Type = uint32_t;
@@ -186,6 +236,7 @@ enum DALI_SCENE_LOADER_API Values : Type
 {
   NONE = 0x00,
   FLIP_VERTICAL = 0x01,
+  GENERATE_BARYCENTRICS = 0x02,
 };
 }
 
@@ -193,6 +244,22 @@ enum DALI_SCENE_LOADER_API Values : Type
  * @brief Makes... geometry for a textured quad.
  */
 DALI_SCENE_LOADER_API Geometry MakeTexturedQuadGeometry(TexturedQuadOptions::Type options = TexturedQuadOptions::NONE);
+
+/*
+ * @brief Makes... a textured quad renderer. With back face culling enabled.
+ * @param texture The texture to use as texture 0 of a set we're creating.
+ * @param shader The shader to use with the renderer.
+ */
+DALI_SCENE_LOADER_API Renderer MakeTexturedQuadRenderer(Texture texture, Shader shader,
+  TexturedQuadOptions::Type options = TexturedQuadOptions::NONE);
+
+/*
+ * @brief Makes... a textured quad actor. Centered. With back face culling enabled.
+ * @param texture The texture to use as texture 0 of a set we're creating.
+ * @param shader The shader to use with the renderer.
+ */
+DALI_SCENE_LOADER_API Actor MakeTexturedQuadActor(Texture texture, Shader shader,
+  TexturedQuadOptions::Type options = TexturedQuadOptions::NONE);
 
 /*
  * @brief Fixes the path of a file. Replaces the '\\' separator by the '/' one.

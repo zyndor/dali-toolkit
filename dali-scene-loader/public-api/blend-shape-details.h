@@ -69,6 +69,22 @@ struct DALI_SCENE_LOADER_API BlendShapes
    */
   static void ConfigureProperties(const std::pair<MeshDefinition, MeshGeometry>& mesh, Shader shader, Actor actor);
 
+  /**
+   * @brief Registers copies of the number of blend shapes, component size and unnormalize factor properties
+   * from @a source, to @a target.
+   */
+  static void CopyUniforms(Shader source, Shader& target);
+
+  /**
+   * @brief Creates EqualTo constraints for each weight uniform from @a source, to @a target.
+   */
+  static void ConstrainWeights(Actor source, Actor& target);
+
+  /**
+   * @brief Determine the number of components from the given bit pattern @a components.
+   */
+  static int CountComponents(int components);
+
   BlendShapes() = delete;
 };
 

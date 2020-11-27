@@ -18,6 +18,7 @@
  */
 
 // INTERNAL INCLUDES
+#include "dali-scene-loader/public-api/lighting-mode.h"
 #include "dali-scene-loader/public-api/customization.h"
 #include "dali-scene-loader/public-api/utils.h"
 #include "dali-scene-loader/public-api/node-definition.h"

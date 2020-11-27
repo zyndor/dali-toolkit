@@ -65,6 +65,8 @@ Actor NodeDefinition::CreateActor(CreateParams& params) const
   actor.SetProperty(Actor::Property::SIZE, mSize);
   actor.SetProperty(Actor::Property::VISIBLE, mIsVisible);
 
+  actor.RegisterProperty(LightingMode::PROPERTY_NAME, mLightingMode, Property::AccessMode::READ_WRITE);
+
   actor.RegisterProperty(ORIGINAL_MATRIX_PROPERTY_NAME, GetLocalSpace(), Property::AccessMode::READ_ONLY);
 
   if (mRenderable)
@@ -246,7 +248,7 @@ void TextNode::OnCreate(const NodeDefinition& node, NodeDefinition::CreateParams
   textParameters.renderer.SetShader(textShader);
 
   bool isRgbaColorText = false;
-  CreateTextGeometryAndTexture(textParameters, textCacheItem, isRgbaColorText);
+  CreateTextGeometryAndTexture(textParameters, textCacheItem, MeshDefinition::sGenerateBarycentrics, isRgbaColorText);
 
   actor.SetProperty(Actor::Property::COLOR, isRgbaColorText ? Color::WHITE : textCacheItem.textParameters.textColor);
   actor.SetProperty(Actor::Property::SCALE, Vector3::ONE);  // Since we're baking the node size into the mesh, we need to compensate here.

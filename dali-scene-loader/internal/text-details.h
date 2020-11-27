@@ -77,7 +77,7 @@ void CalculateGeometry(const ViewProjection& viewProjection, const Matrix& model
 
 
 void CreateTextGeometryAndTexture(TextParameters& parameters, TextCacheItem& textCacheItem,
-  bool& isRgbaColorText);
+  bool generateBarycentrics, bool& isRgbaColorText);
 
 }
 }

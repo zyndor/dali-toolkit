@@ -81,5 +81,60 @@ void BlendShapes::ConfigureProperties(const std::pair<MeshDefinition, MeshGeomet
   shader.RegisterProperty(COMPONENTS, components, Property::AccessMode::READ_ONLY);
 }
 
+void BlendShapes::CopyUniforms(Shader source, Shader& target)
+{
+  auto iComponentSize = source.GetPropertyIndex(COMPONENT_SIZE);
+  target.RegisterProperty(COMPONENT_SIZE, source.GetProperty(iComponentSize).Get<int>());
+
+  auto iNumberOfBlendShapes = source.GetPropertyIndex(NUMBER_OF_BLEND_SHAPES);
+  const int numBlendShapes = source.GetProperty(iNumberOfBlendShapes).Get<int>();
+  target.RegisterProperty(NUMBER_OF_BLEND_SHAPES, numBlendShapes);
+
+  auto iUnnormalizeFactor = source.GetPropertyIndex(UNNORMALIZE_FACTOR);
+  if (iUnnormalizeFactor != Property::INVALID_INDEX)  // V2
+  {
+    target.RegisterProperty(UNNORMALIZE_FACTOR, source.GetProperty(iUnnormalizeFactor).Get<float>());
+  }
+  else // V1
+  {
+    char unnormalizeFactorNameBuffer[64];
+    char* const pFactorName = unnormalizeFactorNameBuffer +
+      snprintf(unnormalizeFactorNameBuffer, sizeof(unnormalizeFactorNameBuffer), "%s[", UNNORMALIZE_FACTOR.c_str());
+    for (int i = 0; i < numBlendShapes; ++i)
+    {
+      snprintf(pFactorName, sizeof(unnormalizeFactorNameBuffer) - (pFactorName - unnormalizeFactorNameBuffer), "%d]", i);
+      iUnnormalizeFactor = source.GetPropertyIndex(unnormalizeFactorNameBuffer);
+      target.RegisterProperty(unnormalizeFactorNameBuffer, source.GetProperty(iUnnormalizeFactor).Get<float>());
+    }
+  }
+}
+
+void BlendShapes::ConstrainWeights(Actor source, Actor& target)
+{
+  char weightNameBuffer[32];
+  char* const pWeightName = weightNameBuffer + snprintf(weightNameBuffer, sizeof(weightNameBuffer), "%s[", WEIGHTS_UNIFORM.c_str());
+  int i = 0;
+
+loop:
+  snprintf(pWeightName, sizeof(weightNameBuffer) - (pWeightName - weightNameBuffer), "%d]", i);
+  std::string weightName{ weightNameBuffer };
+  auto iWeight = source.GetPropertyIndex(weightName);
+  if (iWeight != Property::INVALID_INDEX)
+  {
+    auto outWeight = target.GetPropertyIndex(weightName);
+    Constraint cnstr = Constraint::New<float>(target, outWeight, EqualToConstraint());
+    cnstr.AddSource(Source(source, iWeight));
+    cnstr.Apply();
+
+    ++i;
+    goto loop;
+  }
+}
+
+int BlendShapes::CountComponents(int components)
+{
+  return !!(components & Component::POSITIONS) + !!(components & Component::NORMALS) + !!(components & Component::TANGENTS);
+}
+
 }
 }

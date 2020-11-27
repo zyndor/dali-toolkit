@@ -95,6 +95,133 @@ std::string LoadTextFile(const char * path, bool* fail)
   return std::string();
 }
 
+TextureSet CloneTextures(TextureSet ts)
+{
+  auto tsNew = TextureSet::New();
+  auto numTextures = ts.GetTextureCount();
+  for (decltype(numTextures) i = 0; i < numTextures; i++)
+  {
+    Texture t = ts.GetTexture(i);
+    tsNew.SetTexture(i, t);
+    tsNew.SetSampler(i, ts.GetSampler(i));
+  }
+  return tsNew;
+}
+
+Renderer CloneRenderer(Renderer r, CloneOptions::Type cloneOptions)
+{
+  Geometry g = r.GetGeometry();
+  Shader s = r.GetShader();
+  Renderer rNew = Renderer::New(g, s);
+
+  // Copy properties.
+  Property::IndexContainer indices;
+  r.GetPropertyIndices(indices);
+
+  for (auto& i: indices)
+  {
+    rNew.SetProperty(i, r.GetProperty(i));
+  }
+
+  // Copy texture references (and create TextureSet, if there's any textures).
+  TextureSet ts = r.GetTextures();
+  if(!MaskMatch(cloneOptions, CloneOptions::OMIT_TEXTURES) && ts)
+  {
+    TextureSet tsNew = TextureSet::New();
+    for(unsigned int i = 0; i < ts.GetTextureCount(); ++i)
+    {
+      tsNew.SetTexture(i, ts.GetTexture(i));
+      tsNew.SetSampler(i, ts.GetSampler(i));
+    }
+    rNew.SetTextures(tsNew);
+  }
+
+  return rNew;
+}
+
+Actor CloneActor(Actor a, CloneOptions::Type cloneOptions)
+{
+  Actor aNew = Actor::New();
+  aNew.SetProperty(Actor::Property::NAME, a.GetProperty(Actor::Property::NAME).Get<std::string>());
+
+  // Copy properties.
+  Property::IndexContainer indices;
+  a.GetPropertyIndices(indices);
+
+  for (auto& i: indices)
+  {
+    auto value = a.GetProperty(i);
+    if (aNew.GetPropertyType(i) == Property::NONE)
+    {
+      aNew.RegisterProperty(a.GetPropertyName(i), value);
+    }
+    else
+    {
+      aNew.SetProperty(i, value);
+    }
+  }
+
+  // NOTE: for whatever reason, setting the Actor::Property::SIZE is broken;
+  // we have to explicitly SetSize() -- and it has to happen after any
+  // SetProperty(Actor::Property::SIZE).
+  aNew.SetProperty(Actor::Property::SIZE, a.GetProperty(Actor::Property::SIZE).Get<Vector3>());  // W H Y ?
+
+  // Clone renderers.
+  if (!MaskMatch(cloneOptions, CloneOptions::OMIT_RENDERERS))
+  {
+    for(unsigned int i = 0; i < a.GetRendererCount(); ++i)
+    {
+      Renderer rNew = CloneRenderer(a.GetRendererAt(i), cloneOptions);
+      aNew.AddRenderer(rNew);
+    }
+  }
+
+  // Constrain transform.
+  if (MaskMatch(cloneOptions, CloneOptions::CONSTRAIN_XFORM))
+  {
+    Constraint constraint = Constraint::New<Vector3>(aNew, Actor::Property::POSITION, EqualToConstraint() );
+    constraint.AddSource( Source( a, Actor::Property::POSITION ));
+    constraint.Apply();
+
+    constraint = Constraint::New<Quaternion>(aNew, Actor::Property::ORIENTATION, EqualToConstraint() );
+    constraint.AddSource( Source( a, Actor::Property::ORIENTATION ));
+    constraint.Apply();
+
+    constraint = Constraint::New<Vector3>(aNew, Actor::Property::SCALE, EqualToConstraint());
+    constraint.AddSource(Source(a, Actor::Property::SCALE));
+    constraint.Apply();
+  }
+
+  if (MaskMatch(cloneOptions, CloneOptions::CONSTRAIN_VISIBILITY))
+  {
+    Constraint constraint = Constraint::New<bool>(aNew, Actor::Property::VISIBLE,
+      []( bool& current, const PropertyInputContainer& inputs) {
+      current = inputs[0]->GetBoolean();
+    });
+    constraint.AddSource(Source(a, Actor::Property::VISIBLE));
+    constraint.Apply();
+  }
+
+  // Recurse into children.
+  if (!MaskMatch(cloneOptions, CloneOptions::NO_RECURSE))
+  {
+    for(unsigned int i = 0; i < a.GetChildCount(); ++i)
+    {
+      Actor newChild = CloneActor(a.GetChildAt(i), cloneOptions);
+      aNew.Add(newChild);
+    }
+  }
+
+  if (MaskMatch(cloneOptions, CloneOptions::CONSTRAIN_SIZE))
+  {
+    Constraint constraint = Constraint::New<Vector3>(aNew, Actor::Property::SIZE, EqualToConstraint());
+    constraint.AddSource(Source(a, Actor::Property::SIZE));
+    constraint.Apply();
+  }
+
+  return aNew;
+}
+
 Geometry MakeTexturedQuadGeometry(TexturedQuadOptions::Type options)
 {
   Property::Map properties;
@@ -104,22 +231,47 @@ Geometry MakeTexturedQuadGeometry(TexturedQuadOptions::Type options)
   std::vector<uint8_t> bytes;
   size_t stride = 0;
   size_t uvOffset = 0;
-  struct
+  if (MaskMatch(options, TexturedQuadOptions::GENERATE_BARYCENTRICS))
   {
-    Vector3 aPosition;
-    Vector2 aTexCoord;
-  } vertices[] = {
-    { Vector3(-0.5f, 0.5f, 0.0f), Vector2(0.0f, .0f) },
-    { Vector3(0.5f, 0.5f, 0.0f), Vector2(1.0f, .0f) },
-    { Vector3(-0.5f, -0.5f, 0.0f), Vector2(0.0f, 1.0f) },
-    { Vector3(0.5f, -0.5f, 0.0f), Vector2(1.0f, 1.0f) }
-  };
+    properties.Insert("aBarycentric", Property::VECTOR3);
 
-  bytes.resize(sizeof(vertices));
-  stride = sizeof(vertices[0]);
-  uvOffset = reinterpret_cast<const uint8_t*>(&vertices[0].aTexCoord) - reinterpret_cast<const uint8_t*>(&vertices[0]);
+    struct
+    {
+      Vector3 aPosition;
+      Vector2 aTexCoord;
+      Vector3 aBarycentric;
+    } vertices[] = {
+      { Vector3(-0.5f, 0.5f, 0.0f), Vector2(0.0f, .0f), Vector3::XAXIS },
+      { Vector3(0.5f, 0.5f, 0.0f), Vector2(1.0f, .0f), Vector3::ZAXIS },
+      { Vector3(-0.5f, -0.5f, 0.0f), Vector2(0.0f, 1.0f), Vector3::YAXIS },
+      { Vector3(0.5f, -0.5f, 0.0f), Vector2(1.0f, 1.0f), Vector3::XAXIS }
+    };
 
-  std::memcpy(bytes.data(), vertices, sizeof(vertices));
+    bytes.resize(sizeof(vertices));
+    stride = sizeof(vertices[0]);
+    uvOffset = reinterpret_cast<const uint8_t*>(&vertices[0].aTexCoord) - reinterpret_cast<const uint8_t*>(&vertices[0]);
+
+    std::memcpy(bytes.data(), vertices, sizeof(vertices));
+  }
+  else
+  {
+    struct
+    {
+      Vector3 aPosition;
+      Vector2 aTexCoord;
+    } vertices[] = {
+      { Vector3(-0.5f, 0.5f, 0.0f), Vector2(0.0f, .0f) },
+      { Vector3(0.5f, 0.5f, 0.0f), Vector2(1.0f, .0f) },
+      { Vector3(-0.5f, -0.5f, 0.0f), Vector2(0.0f, 1.0f) },
+      { Vector3(0.5f, -0.5f, 0.0f), Vector2(1.0f, 1.0f) }
+    };
+
+    bytes.resize(sizeof(vertices));
+    stride = sizeof(vertices[0]);
+    uvOffset = reinterpret_cast<const uint8_t*>(&vertices[0].aTexCoord) - reinterpret_cast<const uint8_t*>(&vertices[0]);
+
+    std::memcpy(bytes.data(), vertices, sizeof(vertices));
+  }
 
   if (MaskMatch(options, TexturedQuadOptions::FLIP_VERTICAL))
   {
@@ -138,6 +290,31 @@ Geometry MakeTexturedQuadGeometry(TexturedQuadOptions::Type options)
   geometry.AddVertexBuffer(vertexBuffer);
   geometry.SetType(Geometry::TRIANGLE_STRIP);
   return geometry;
+}
+
+Renderer MakeTexturedQuadRenderer(Texture texture, Shader shader, TexturedQuadOptions::Type options)
+{
+  Geometry geometry = MakeTexturedQuadGeometry(options);
+
+  TextureSet ts = TextureSet::New();
+  ts.SetTexture(0, texture);
+
+  Renderer r = Renderer::New(geometry, shader);
+  // NOTE: alpha blending is AUTO by default, thus depends on an alpha channel being present in the given texture.
+  r.SetProperty(Renderer::Property::FACE_CULLING_MODE, FaceCullingMode::BACK);
+  r.SetTextures(ts);
+  return r;
+}
+
+Actor MakeTexturedQuadActor(Texture texture, Shader shader, TexturedQuadOptions::Type options)
+{
+  Actor quad = Actor::New();
+  SetActorCentered(quad);
+
+  Renderer r = MakeTexturedQuadRenderer(texture, shader, options);
+  quad.AddRenderer(r);  // by reference, why?
+  quad.SetProperty(Actor::Property::VISIBLE, true);
+  return quad;
 }
 
 void ToUnixFileSeparators(std::string& path)

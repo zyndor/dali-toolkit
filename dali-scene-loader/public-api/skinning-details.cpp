@@ -28,5 +28,27 @@ const unsigned int Skinning::MAX_JOINTS = 64;
 
 const std::string Skinning::BONE_UNIFORM_NAME = "uBone";
 
+void Skinning::HelpConstrainBoneTransforms(Shader source, Shader target)
+{
+  char nameBuffer[16];
+  char* const pWrite = nameBuffer + sprintf(nameBuffer, "%s[", Skinning::BONE_UNIFORM_NAME.c_str());
+  for (uint32_t j = 0; j < Skinning::MAX_JOINTS; ++j)
+  {
+    sprintf(pWrite, "%d]", j);
+    std::string name{ nameBuffer };
+    Property::Index iSource = source.GetPropertyIndex(name);
+    if (iSource == Property::INVALID_INDEX)
+    {
+      break;
+    }
+
+    Property::Index iTarget = target.RegisterProperty(name, target.GetProperty(iSource).Get<Matrix>());
+
+    Constraint constraint = Constraint::New<Matrix>(target, iTarget, EqualToConstraint());
+    constraint.AddSource(Source(source, iSource));
+    constraint.Apply();
+  }
+}
+
 }
 }

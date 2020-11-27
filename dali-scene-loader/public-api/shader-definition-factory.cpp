@@ -110,6 +110,11 @@ uint64_t HashNode(const NodeDefinition& nodeDef, const MaterialDefinition& mater
     hash.Add("FLIP"/*_V*/);
   }
 
+  if (MaskMatch(nodeDef.mLightingMode, LightingMode::LIT))
+  {
+    hash.Add("LIT");
+  }
+
   if (meshDef.HasBlendShapes())
   {
     bool hasPositions = false;
@@ -229,6 +234,11 @@ Index ShaderDefinitionFactory::ProduceShader(const NodeDefinition& nodeDef)
   if (MaskMatch(meshDef.mFlags, MeshDefinition::FLIP_UVS_VERTICAL))
   {
     shaderDef.mDefines.push_back("FLIP_V");
+  }
+
+  if (MaskMatch(nodeDef.mLightingMode, LightingMode::LIT))
+  {
+    shaderDef.mDefines.push_back("LIT");
   }
 
   if (meshDef.HasBlendShapes())

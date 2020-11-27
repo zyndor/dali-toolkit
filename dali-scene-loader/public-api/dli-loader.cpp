@@ -114,6 +114,35 @@ bool ReadAttribAccessor(const TreeNode* node, MeshDefinition::Accessor& accessor
   return ReadBlob(node, accessor.mBlob.mOffset, accessor.mBlob.mLength);
 }
 
+bool ReadLightingMode(const TreeNode* node, LightingMode::Type& lightingMode)
+{
+  if (!node)
+  {
+    return false;
+  }
+  else if (node->GetType() == TreeNode::STRING)
+  {
+    return LightingMode::InterpretValue(node->GetString(), lightingMode);
+  }
+  else if (node->GetType() == TreeNode::INTEGER)
+  {
+    int value = node->GetInteger();
+    if (LightingMode::GetValue(static_cast<LightingMode::Type>(value)))
+    {
+      lightingMode = static_cast<LightingMode::Type>(value);
+      return true;
+    }
+    else
+    {
+      return false;
+    }
+  }
+  else  //... but if present, it has to be valid type.
+  {
+    return false;
+  }
+}
+
 bool ReadColorCode(const TreeNode* node, Vector4& color,
   DliLoader::ConvertColorCode convertColorCode)
 {
@@ -1219,7 +1248,7 @@ void DliLoader::Impl::ParseNodes(const TreeNode* const nodes, Index index, LoadP
     };
     std::vector<Entry> mIndices;
   } mapper(nodes->Size());
-  ParseNodesInternal(nodes, index, parents, params, mapper);
+  ParseNodesInternal(nodes, index, LightingMode::UNLIT, parents, params, mapper);
 
   auto& scene = params.output.mScene;
   for (size_t i0 = 0, i1 = scene.GetNodeCount(); i0 < i1; ++i0)
@@ -1232,7 +1261,7 @@ void DliLoader::Impl::ParseNodes(const TreeNode* const nodes, Index index, LoadP
 }
 
 void DliLoader::Impl::ParseNodesInternal(const TreeNode* const nodes, Index index,
-  std::vector<Index>& inOutParentStack, LoadParams& params, IIndexMapper& mapper)
+  LightingMode::Type lightingMode, std::vector<Index>& inOutParentStack, LoadParams& params, IIndexMapper& mapper)
 {
   // Properties that may be resolved from a JSON value with ReadInt() -- or default to 0.
   struct IndexProperty { ResourceType::Value type; const TreeNode* source; Index& target; };
@@ -1264,6 +1293,17 @@ void DliLoader::Impl::ParseNodesInternal(const TreeNode* const nodes, Index inde
 
     // visibility
     ReadBool(node->GetChild("visible"), nodeDef.mIsVisible);
+
+    // Try to get lighting mode.
+    if (auto eLightingMode = node->GetChild(LightingMode::PROPERTY_NAME))
+    {
+      if (!ReadLightingMode(eLightingMode, lightingMode))
+      {
+        mOnError(FormatString("node %d: Invalid %s value '%s'; keeping '%s'.", index,
+          LightingMode::PROPERTY_NAME, node->GetString(), LightingMode::GetValue(lightingMode)));
+      }
+    }
+    nodeDef.mLightingMode = lightingMode;
 
     // type classification
     if (auto eCustomization = node->GetChild("customization"))  // customization
@@ -1504,7 +1544,8 @@ void DliLoader::Impl::ParseNodesInternal(const TreeNode* const nodes, Index inde
           auto& child = (*j0).second;
           if (child.GetType() == TreeNode::INTEGER)
           {
-            ParseNodesInternal(nodes, child.GetInteger(), inOutParentStack, params, mapper); // child object is created in scene definition.
+            ParseNodesInternal(nodes, child.GetInteger(), lightingMode, inOutParentStack,
+              params, mapper);  // child object is created in scene definition.
           }
           else
           {
