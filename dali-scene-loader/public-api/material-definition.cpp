@@ -106,7 +106,7 @@ TextureDefinition::TextureDefinition(const std::string& imageUri, SamplerFlags::
 {}
 
 MaterialDefinition::RawData
-  MaterialDefinition::LoadRaw(const std::string& imagesPath) const
+  MaterialDefinition::LoadRaw(const std::string& imagesPath, Index textureIndex) const
 {
   RawData raw;
 
@@ -126,8 +126,15 @@ MaterialDefinition::RawData
     return iTexture != mTextureStages.end() && MaskMatch(iTexture->mSemantic, flags);
   };
 
+  if (checkStage(ANIMATED_IMAGES))
+  {
+    for (auto& ts : mTextureStages)
+    {
+      raw.mTextures.push_back({ SyncImageLoader::Load(imagesPath + ts.mTexture.mImageUri), ts.mTexture.mSamplerFlags });
+    }
+  }
   // Check for compulsory textures: Albedo, Metallic, Roughness, Normal
-  if (checkStage(ALBEDO | METALLIC))
+  else if (checkStage(ALBEDO | METALLIC))
   {
     raw.mTextures.push_back({ SyncImageLoader::Load(imagesPath + iTexture->mTexture.mImageUri), iTexture->mTexture.mSamplerFlags });
     ++iTexture;

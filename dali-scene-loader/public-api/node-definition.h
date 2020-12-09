@@ -137,6 +137,19 @@ struct DALI_SCENE_LOADER_API ConstraintRequest
 };
 
 /**
+ * @brief Information about animated images that needs to be configured with it.
+ */
+struct DALI_SCENE_LOADER_API AnimatedImageNodeConfigurationRequest
+{
+  Actor mActor;
+  Index mMaterialIndex;
+  int mFrameStart;
+  int mFrameEnd;
+  int mFrameRate;
+  int mLoopCount;
+};
+
+/**
  * @brief Defines a node, consisting of a name, a transform, a size, a lighting mode
  *  (applied recursively), a list of child nodes, and slots for customization and
  *  rendering logic, which are mutually exclusive in the current implementation.
@@ -158,6 +171,7 @@ public:  // TYPES
     std::vector<ConstraintRequest> mConstrainables;
     std::vector<SkinningShaderConfigurationRequest> mSkinnables;
     std::vector<BlendshapeShaderConfigurationRequest> mBlendshapeRequests;
+    std::vector<AnimatedImageNodeConfigurationRequest> mAnimatables;
   };
 
   class DALI_SCENE_LOADER_API Renderable
@@ -294,6 +308,21 @@ public: // DATA
   Vector4 mShadowColor = Color::BLACK;
   Vector2 mShadowOffset = Vector2::ZERO;
   float mRadius = 0.f;
+};
+
+/**
+ * @brief Parameters for an Animated Image Node.
+ */
+class DALI_SCENE_LOADER_API AnimatedImageNode : public ModelNode
+{
+public:  // METHODS
+  void OnCreate(const NodeDefinition& node, NodeDefinition::CreateParams& params, Actor& actor) const override;
+
+public:  // DATA
+  int mFrameStart = 0;
+  int mFrameEnd = -1;
+  int mFrameRate = 60;
+  int mLoopCount = 0;
 };
 
 }

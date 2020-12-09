@@ -141,6 +141,7 @@ struct DALI_SCENE_LOADER_API MaterialDefinition
     // Other binary options
     TRANSPARENCY = NthBit(20),
     GLTF_CHANNELS = NthBit(21),  // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#pbrmetallicroughnessmetallicroughnesstexture
+    ANIMATED_IMAGES = NthBit(22),
 
     // Alpha cutoff - reserved from the 24th bit
     ALPHA_CUTOFF_BITS = 8,
@@ -183,12 +184,13 @@ struct DALI_SCENE_LOADER_API MaterialDefinition
    *  which is then returned.
    * @note This may be called from any thread.
    */
-  RawData LoadRaw(const std::string& imagesPath) const;
+  RawData LoadRaw(const std::string& imagesPath, Index textureIndex = INVALID_INDEX) const;
 
   /**
    * @brief Creates Textures from the pixel data in @a raw, gets the
    *  the cube maps from the iEnvironment'th element of @a environments,
-   *  then creates a DALi TextureSet and returns it.
+   *  then creates a DALi TextureSet and returns it. For ANIMATED_IMAGES,
+   *  an index of textures can be controlled manually.
    * @note This must be called from the event thread.
    * @note The textures are added in the following order: 2D, cube maps.
    */

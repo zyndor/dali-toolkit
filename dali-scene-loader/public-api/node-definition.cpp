@@ -256,5 +256,12 @@ void TextNode::OnCreate(const NodeDefinition& node, NodeDefinition::CreateParams
   params.mRegisterTextCacheItem(std::move(textCacheItem));
 }
 
+void AnimatedImageNode::OnCreate(const NodeDefinition& node, NodeDefinition::CreateParams& params,
+  Actor& actor) const
+{
+  ModelNode::OnCreate(node, params, actor);
+  params.mAnimatables.push_back(AnimatedImageNodeConfigurationRequest{ actor, mMaterialIdx, mFrameStart, mFrameEnd, mFrameRate, mLoopCount });
+}
+
 }
 }

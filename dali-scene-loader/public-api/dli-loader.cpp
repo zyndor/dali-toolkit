@@ -1094,86 +1094,104 @@ void DliLoader::Impl::ParseMaterials(const TreeNode* materials, ConvertColorCode
 
     //TODO : need to consider AGIF
     std::vector<std::string> texturePaths;
-    std::string texturePath;
-    if (ReadString(node.GetChild("albedoMap"), texturePath))
+    if (ReadStringVector(node.GetChild("animatedImage"), texturePaths))
     {
-      ToUnixFileSeparators(texturePath);
-      const auto semantic = MaterialDefinition::ALBEDO;
-      materialDef.mTextureStages.push_back({ semantic, TextureDefinition{ std::move(texturePath) } });
-      materialDef.mFlags |= semantic | MaterialDefinition::TRANSPARENCY;  // NOTE: only in dli does single / separate ALBEDO texture mean TRANSPARENCY.
-    }
-    if (ReadString(node.GetChild("albedoMetallicMap"), texturePath))
-    {
-      ToUnixFileSeparators(texturePath);
-
-      if (MaskMatch(materialDef.mFlags, MaterialDefinition::ALBEDO))
+      for (auto it = texturePaths.begin(); it != texturePaths.end(); ++it)
       {
-        mOnError(FormatString("material %d: conflicting semantics; already set %s.", resources.mMaterials.size(), "albedo"));
+        ToUnixFileSeparators(*it);
+      }
+      materialDef.mFlags |= materialDef.ANIMATED_IMAGES | materialDef.TRANSPARENCY;
+      materialDef.mTextureStages.reserve(texturePaths.size());
+      for (auto&& tp : texturePaths)
+      {
+        materialDef.mTextureStages.push_back({ MaterialDefinition::ALBEDO, TextureDefinition{ std::move(tp) } });
+      }
+    }
+    else
+    {
+      std::string texturePath;
+      if (ReadString(node.GetChild("albedoMap"), texturePath))
+      {
+        ToUnixFileSeparators(texturePath);
+
+        const auto semantic = MaterialDefinition::ALBEDO;
+        materialDef.mTextureStages.push_back({ semantic, TextureDefinition{ std::move(texturePath) } });
+        materialDef.mFlags |= semantic | MaterialDefinition::TRANSPARENCY;  // NOTE: only in dli does single / separate ALBEDO texture mean TRANSPARENCY.
       }
 
-      const auto semantic = MaterialDefinition::ALBEDO | MaterialDefinition::METALLIC;
-      materialDef.mTextureStages.push_back({ semantic, TextureDefinition{ std::move(texturePath) } });
-      materialDef.mFlags |= semantic;
-    }
-
-    if (ReadString(node.GetChild("metallicRoughnessMap"), texturePath))
-    {
-      ToUnixFileSeparators(texturePath);
-
-      if (MaskMatch(materialDef.mFlags, MaterialDefinition::METALLIC))
+      if (ReadString(node.GetChild("albedoMetallicMap"), texturePath))
       {
-        mOnError(FormatString("material %d: conflicting semantics; already set %s.", resources.mMaterials.size(), "metallic"));
+        ToUnixFileSeparators(texturePath);
+
+        if (MaskMatch(materialDef.mFlags, MaterialDefinition::ALBEDO))
+        {
+          mOnError(FormatString("material %d: conflicting semantics; already set %s.", resources.mMaterials.size(), "albedo"));
+        }
+
+        const auto semantic = MaterialDefinition::ALBEDO | MaterialDefinition::METALLIC;
+        materialDef.mTextureStages.push_back({ semantic, TextureDefinition{ std::move(texturePath) } });
+        materialDef.mFlags |= semantic;
       }
 
-      const auto semantic = MaterialDefinition::METALLIC | MaterialDefinition::ROUGHNESS;
-      materialDef.mTextureStages.push_back({ semantic, TextureDefinition{ std::move(texturePath) } });
-      materialDef.mFlags |= semantic |
-        // We have a metallic-roughhness map and the first texture did not have albedo semantics - we're in the transparency workflow.
-        (MaskMatch(materialDef.mFlags, MaterialDefinition::ALBEDO) * MaterialDefinition::TRANSPARENCY);
-    }
-
-    if (ReadString(node.GetChild("normalMap"), texturePath))
-    {
-      ToUnixFileSeparators(texturePath);
-
-      const auto semantic = MaterialDefinition::NORMAL;
-      materialDef.mTextureStages.push_back({ semantic, TextureDefinition{ std::move(texturePath) } });
-      materialDef.mFlags |= semantic |
-        // We have a standalone normal map and the first texture did not have albedo semantics - we're in the transparency workflow.
-        (MaskMatch(materialDef.mFlags, MaterialDefinition::ALBEDO) * MaterialDefinition::TRANSPARENCY);
-    }
-
-    if (ReadString(node.GetChild("normalRoughnessMap"), texturePath))
-    {
-      ToUnixFileSeparators(texturePath);
-
-      if (MaskMatch(materialDef.mFlags, MaterialDefinition::NORMAL))
+      if (ReadString(node.GetChild("metallicRoughnessMap"), texturePath))
       {
-        mOnError(FormatString("material %d: conflicting semantics; already set %s.", resources.mMaterials.size(), "normal"));
+        ToUnixFileSeparators(texturePath);
+
+        if (MaskMatch(materialDef.mFlags, MaterialDefinition::METALLIC))
+        {
+          mOnError(FormatString("material %d: conflicting semantics; already set %s.", resources.mMaterials.size(), "metallic"));
+        }
+
+        const auto semantic = MaterialDefinition::METALLIC | MaterialDefinition::ROUGHNESS;
+        materialDef.mTextureStages.push_back({ semantic, TextureDefinition{ std::move(texturePath) } });
+        materialDef.mFlags |= semantic |
+          // We have a metallic-roughhness map and the first texture did not have albedo semantics - we're in the transparency workflow.
+          (MaskMatch(materialDef.mFlags, MaterialDefinition::ALBEDO) * MaterialDefinition::TRANSPARENCY);
       }
 
-      if (MaskMatch(materialDef.mFlags, MaterialDefinition::ROUGHNESS))
+      if (ReadString(node.GetChild("normalMap"), texturePath))
       {
-        mOnError(FormatString("material %d: conflicting semantics; already set %s.", resources.mMaterials.size(), "roughness"));
+        ToUnixFileSeparators(texturePath);
+
+        const auto semantic = MaterialDefinition::NORMAL;
+        materialDef.mTextureStages.push_back({ semantic, TextureDefinition{ std::move(texturePath) } });
+        materialDef.mFlags |= semantic |
+          // We have a standalone normal map and the first texture did not have albedo semantics - we're in the transparency workflow.
+          (MaskMatch(materialDef.mFlags, MaterialDefinition::ALBEDO) * MaterialDefinition::TRANSPARENCY);
       }
 
-      if (MaskMatch(materialDef.mFlags, MaterialDefinition::TRANSPARENCY))
+      if (ReadString(node.GetChild("normalRoughnessMap"), texturePath))
       {
-        mOnError(FormatString("material %d: conflicting semantics; already set %s.", resources.mMaterials.size(), "transparency"));
+        ToUnixFileSeparators(texturePath);
+
+        if (MaskMatch(materialDef.mFlags, MaterialDefinition::NORMAL))
+        {
+          mOnError(FormatString("material %d: conflicting semantics; already set %s.", resources.mMaterials.size(), "normal"));
+        }
+
+        if (MaskMatch(materialDef.mFlags, MaterialDefinition::ROUGHNESS))
+        {
+          mOnError(FormatString("material %d: conflicting semantics; already set %s.", resources.mMaterials.size(), "roughness"));
+        }
+
+        if (MaskMatch(materialDef.mFlags, MaterialDefinition::TRANSPARENCY))
+        {
+          mOnError(FormatString("material %d: conflicting semantics; already set %s.", resources.mMaterials.size(), "transparency"));
+        }
+
+        const auto semantic = MaterialDefinition::NORMAL | MaterialDefinition::ROUGHNESS;
+        materialDef.mTextureStages.push_back({ semantic, TextureDefinition{ std::move(texturePath) } });
+        materialDef.mFlags |= semantic;
       }
 
-      const auto semantic = MaterialDefinition::NORMAL | MaterialDefinition::ROUGHNESS;
-      materialDef.mTextureStages.push_back({ semantic, TextureDefinition{ std::move(texturePath) } });
-      materialDef.mFlags |= semantic;
-    }
+      if (ReadString(node.GetChild("subsurfaceMap"), texturePath))
+      {
+        ToUnixFileSeparators(texturePath);
 
-    if (ReadString(node.GetChild("subsurfaceMap"), texturePath))
-    {
-      ToUnixFileSeparators(texturePath);
-
-      const auto semantic = MaterialDefinition::SUBSURFACE;
-      materialDef.mTextureStages.push_back({ semantic, TextureDefinition{ std::move(texturePath) } });
-      materialDef.mFlags |= semantic;
+        const auto semantic = MaterialDefinition::SUBSURFACE;
+        materialDef.mTextureStages.push_back({ semantic, TextureDefinition{ std::move(texturePath) } });
+        materialDef.mFlags |= semantic;
+      }
     }
 
     if (ReadColorCodeOrColor(&node, materialDef.mColor, convertColorCode) &&
@@ -1365,6 +1383,30 @@ void DliLoader::Impl::ParseNodesInternal(const TreeNode* const nodes, Index inde
         resourceIds.push_back({ ResourceType::Mesh, eMesh, arcNode->mMeshIdx });
 
         ReadArcField(eRenderable, *arcNode);
+      }
+      else if ((eRenderable = node->GetChild("animatedImage")))
+      {
+        // check for mesh before allocating - this can't be missing.
+        auto eMesh = eRenderable->GetChild("mesh");
+        if (!eMesh)
+        {
+          ExceptionFlinger(ASSERT_LOCATION) << "node " << nodeDef.mName << ": Missing mesh definition.";
+        }
+
+        auto animatedImageNode = new AnimatedImageNode;
+        renderable.reset(animatedImageNode);
+        modelNode = animatedImageNode;
+
+        resourceIds.push_back({ ResourceType::Mesh, eMesh, animatedImageNode->mMeshIdx });
+
+        float range[2] = { .0f };
+        if (ReadVector(eRenderable->GetChild("range"), range, 2))
+        {
+          animatedImageNode->mFrameStart = static_cast<int> (range[0]);
+          animatedImageNode->mFrameEnd = static_cast<int> (range[1]);
+        }
+        ReadInt(eRenderable->GetChild("frameRate"), animatedImageNode->mFrameRate);
+        ReadInt(eRenderable->GetChild("loopCount"), animatedImageNode->mLoopCount);
       }
 
       if (renderable)  // process common properties of all renderables + register payload

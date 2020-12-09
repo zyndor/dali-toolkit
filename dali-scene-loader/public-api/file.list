@@ -2,6 +2,7 @@ set(scene_loader_public_api_dir "${scene_loader_dir}/public-api")
 
 set(scene_loader_src_files ${scene_loader_src_files}
 	${scene_loader_public_api_dir}/alpha-function-helper.cpp
+	${scene_loader_public_api_dir}/animated-image.cpp
 	${scene_loader_public_api_dir}/animated-property.cpp
 	${scene_loader_public_api_dir}/animation-definition.cpp
 	${scene_loader_public_api_dir}/blend-shape-details.cpp
