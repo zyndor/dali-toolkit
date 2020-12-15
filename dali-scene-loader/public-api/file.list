@@ -23,6 +23,7 @@ set(scene_loader_src_files ${scene_loader_src_files}
 	${scene_loader_public_api_dir}/shader-definition-factory.cpp
 	${scene_loader_public_api_dir}/skinning-details.cpp
 	${scene_loader_public_api_dir}/string-callback.cpp
+	${scene_loader_public_api_dir}/text-cache-item.cpp
 	${scene_loader_public_api_dir}/utils.cpp
 	${scene_loader_public_api_dir}/view-projection.cpp
 )

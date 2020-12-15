@@ -20,6 +20,7 @@
  // INTERNAL INCLUDES
 #include "dali-scene-loader/public-api/api.h"
 #include "dali-scene-loader/public-api/animation-definition.h"
+#include "dali-scene-loader/public-api/text-cache-item.h"
 #include "dali-scene-loader/public-api/customization.h"
 #include "dali-scene-loader/public-api/string-callback.h"
 #include "dali-scene-loader/public-api/index.h"
@@ -66,9 +67,20 @@ public:
     std::string mAnimationsPath;
 
     /**
+     * @brief Provides a facility to determine font family, slant, weight and size
+          *  from the "code" property of a "text" node.
+     */
+    ConvertFontCode mConvertFontCode;
+
+    /**
      * @brief Provides a facility to determine a color from a code instead of RGB(A) values.
      */
     ConvertColorCode mConvertColorCode;
+
+    /**
+     * @brief Provides a text localisation facility.
+     */
+    TextCacheItem::Localizer mGetLocalisedText;
 
     /**
      * @brief A collection of handlers, mapped to the names of the top level (i.e. below

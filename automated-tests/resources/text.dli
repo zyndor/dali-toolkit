@@ -1,0 +1,36 @@
+{
+  "scene": 0,
+  "scenes": [ { "nodes": [ 0 ] } ],
+  "nodes": [ {
+    "name": "root",
+    "children": [ 1 ]
+  }, {
+    "name": "text",
+    "size": [ 3.0, 3.0 ],
+    "text": {
+      "shader": 0,
+      "string": "<i>hell<color value='#ff7700'>o</color> <b>W<color  value='#ff7700'>o</color>rld</b>!</i>",
+      "style": {
+        "markup": true,
+        "fontFamily": "Times New Roman",
+        "fontSize": "32pt",
+        "horizontalAlignment": "center",
+        "verticalAlignment": "center",
+        "shadow": {
+          "offset": [ 2.0, 5.0 ]
+        },
+        "circularPath": {
+          "circularAlignment": "center",
+          "radius": 0.4,
+          "beginAngle": 300.0,
+          "incrementAngle": -240.0
+        }
+      }
+    }
+  } ],
+  "shaders": [ {
+    "vertex": "dli_text.vsh",
+    "fragment": "dli_text.fsh",
+    "rendererState": "ALPHA_BLEND"
+  } ]
+}

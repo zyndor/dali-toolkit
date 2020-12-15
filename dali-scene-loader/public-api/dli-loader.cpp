@@ -22,7 +22,10 @@
 #include "dali/public-api/object/property-array.h"
 #include "dali/devel-api/common/map-wrapper.h"
 #include "dali-toolkit/devel-api/builder/json-parser.h"
+#include "dali/devel-api/text-abstraction/bitmap-font.h"
+#include "dali/devel-api/text-abstraction/font-client.h"
 #include "dali/integration-api/debug.h"
+#include "dali-toolkit/devel-api/text/bitmap-font.h"
 #include <fstream>
 #include <limits>
 #include <algorithm>
@@ -40,7 +43,9 @@
 #include "dali-scene-loader/public-api/light-parameters.h"
 #include "dali-scene-loader/public-api/blend-shape-details.h"
 #include "dali-scene-loader/public-api/ktx-loader.h"
+#include "dali-scene-loader/public-api/text-cache-item.h"
 #include "dali-scene-loader/public-api/utils.h"
+#include "dali-scene-loader/internal/text-details.h"
 #include "dali-scene-loader/internal/json-util.h"
 
 #define DLI_0_1_COMPATIBILITY
@@ -157,6 +162,145 @@ void ReadArcField(const TreeNode* eArc, ArcNode& arc)
 
   arc.mEndAngleDegrees = .0f;
   ReadFloat(eArc->GetChild("endAngle"), arc.mEndAngleDegrees);
+}
+
+/**
+* @brief Reads a font's size.
+*
+* The font's size could be a float, an integer or a string in the json file.
+* If it's a float or an integer then the units are points.
+* If it's a string the last two characters are checked:
+*  - The units are pixels if 'px' matches with the last two characters.
+*  - The units are points otherwise.
+*
+* @param[int] node The tree node with the font's size.
+* @param[out] fontSize The font's size.
+* @param[out] units The units of the font's size. (POINTS or PIXELS)
+*
+* @return true if succedded to read the font's size.
+*/
+bool ReadFontSize(const TreeNode* node, float& fontSize, FontSizeUnits& units)
+{
+  if (nullptr == node)
+  {
+    return false;
+  }
+
+  units = FontSizeUnits::POINTS;
+  switch (node->GetType())
+  {
+  case TreeNode::INTEGER:
+  {
+    int fontSizeInt = 0;
+    ReadInt(node, fontSizeInt);
+    fontSize = static_cast<float>( fontSizeInt );
+    break;
+  }
+  case TreeNode::FLOAT:
+  {
+    ReadFloat(node, fontSize);
+    break;
+  }
+  case TreeNode::STRING:
+  {
+    std::string fontSizeStr;
+    ReadString(node, fontSizeStr);
+
+    // Check the units
+    const std::size_t size = fontSizeStr.size();
+    const bool fromPixelsToPoints = ((2u < size) && SceneLoader::CaseInsensitiveStringCompare((fontSizeStr.c_str() + size - 2u), PIXEL_UNITS));
+
+    // Remove non digits and convert to int.
+    std::string::iterator it = std::remove_if(fontSizeStr.begin(), fontSizeStr.end(), [&](int character) { return !std::isdigit(character); });
+    fontSizeStr.erase(it, fontSizeStr.end());
+    std::stringstream stream(fontSizeStr);
+    stream >> fontSize;
+
+    // Convert from pixels to points.
+    if (fromPixelsToPoints)
+    {
+      units = FontSizeUnits::PIXELS;
+    }
+    break;
+  }
+  default:
+  {
+    return false;
+  }
+  }
+  return true;
+}
+
+///@brief Reads the style field of a text actor.
+bool ReadTextStyle(const TreeNode* eStyle, TextNode& text,
+  DliLoader::ConvertColorCode convertColorCode, DliLoader::ConvertFontCode convertFontCode)
+{
+  if (!eStyle)
+  {
+    return false;
+  }
+
+  std::string styleCode;
+  if (ReadString(eStyle->GetChild("code"), styleCode) && convertFontCode)
+  {
+    text.mStyle.fontSize = 0.f;
+    convertFontCode(styleCode,
+      text.mStyle.fontFamily,
+      text.mStyle.fontSlant,
+      text.mStyle.fontWeight,
+      text.mStyle.fontSize);
+
+    if (convertColorCode)
+    {
+      text.mStyle.textColor = convertColorCode(styleCode);
+      text.mStyle.isTextColorSet = true;
+    }
+  }
+
+  ReadString(eStyle->GetChild("fontFamily"), text.mStyle.fontFamily);
+  ReadString(eStyle->GetChild("fontWeight"), text.mStyle.fontWeight);
+  ReadString(eStyle->GetChild("horizontalAlignment"), text.mStyle.horizontalAlignment);
+  ReadString(eStyle->GetChild("verticalAlignment"), text.mStyle.verticalAlignment);
+  ReadString(eStyle->GetChild("fontWidth"), text.mStyle.fontWidth);
+  ReadString(eStyle->GetChild("fontSlant"), text.mStyle.fontSlant);
+  text.mStyle.layout = "singleLine";
+
+  float fontSize = 0;
+  FontSizeUnits units = FontSizeUnits::POINTS;
+  if (ReadFontSize(eStyle->GetChild("fontSize"), fontSize, units))
+  {
+    text.mStyle.fontSize = fontSize;
+    if (FontSizeUnits::PIXELS == units)
+    {
+      text.mStyle.fontSize = PixelsToPoints(static_cast<int>(fontSize));
+    }
+  }
+
+  const bool colorRead = ReadColorCodeOrColor(eStyle, text.mStyle.textColor,
+    convertColorCode);
+  text.mStyle.isTextColorSet = text.mStyle.isTextColorSet || colorRead;
+
+  if (auto eShadow = eStyle->GetChild("shadow"))
+  {
+    ReadColorCodeOrColor(eShadow, text.mShadowColor, convertColorCode);
+    ReadVector(eShadow->GetChild("offset"), text.mShadowOffset.AsFloat(), 2);
+  }
+
+  bool markupEnabled = false;
+  ReadBool(eStyle->GetChild("markup"), markupEnabled);
+  text.mStyle.markupEnabled = markupEnabled;
+
+  const TreeNode* circularPath = eStyle->GetChild("circularPath");
+  if (nullptr != circularPath)
+  {
+    text.mStyle.layout = "circular";
+    ReadString(circularPath->GetChild("circularAlignment"), text.mStyle.circularAlignment);
+    ReadFloat(circularPath->GetChild("radius"), text.mRadius);
+    ReadFloat(circularPath->GetChild("beginAngle"), text.mStyle.beginAngle);
+    ReadFloat(circularPath->GetChild("incrementAngle"), text.mStyle.incrementAngle);
+  }
+
+  return true;
 }
 
 const TreeNode *GetNthChild(const TreeNode *node, uint32_t index)
@@ -1149,6 +1293,21 @@ void DliLoader::Impl::ParseNodesInternal(const TreeNode* const nodes, Index inde
         renderable.reset(modelNode);
 
         resourceIds.push_back({ ResourceType::Mesh, eMesh, modelNode->mMeshIdx });
+      }
+      else if ((eRenderable = node->GetChild("text")))
+      {
+        auto textNode = new TextNode;
+        renderable.reset(textNode);
+
+        if (ReadString(eRenderable->GetChild("string"), textNode->mInternationalizationTextCode))
+        {
+          textNode->mStyle.text = params.input.mGetLocalisedText ?
+            params.input.mGetLocalisedText(textNode->mInternationalizationTextCode) :
+            textNode->mInternationalizationTextCode;
+        }
+
+        ReadTextStyle(eRenderable->GetChild("style"), *textNode, params.input.mConvertColorCode, params.input.mConvertFontCode);
+
       }
       else if ((eRenderable = node->GetChild("arc")))
       {

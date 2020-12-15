@@ -19,6 +19,7 @@
 #include "dali-scene-loader/public-api/node-definition.h"
 #include "dali-scene-loader/public-api/renderer-state.h"
 #include "dali-scene-loader/public-api/utils.h"
+#include "dali-scene-loader/internal/text-details.h"
 
 namespace Dali
 {
@@ -203,6 +204,54 @@ void ArcNode::GetEndVectorWithDiffAngle(float startAngle, float diffAngle, Vecto
   }
   endVector.x = cosf(endAngle * Math::PI_OVER_180);
   endVector.y = sinf(endAngle * Math::PI_OVER_180);
+}
+
+void TextNode::OnCreate(const NodeDefinition& node, NodeDefinition::CreateParams& params,
+  Actor& actor) const
+{
+  DALI_ASSERT_DEBUG(mShaderIdx != INVALID_INDEX);
+  Renderable::OnCreate(node, params, actor);
+
+  // Get the text's size in window coordinates. Needed by the text renderer back end.
+  TextParameters textParameters;
+  textParameters.quadScaleFactor = node.mSize;
+
+  Size textImageSize;
+  auto& xforms = params.mXforms;
+  const Matrix& model = xforms.modelStack.Top();
+  CalculateGeometry(xforms.viewProjection, model, textParameters, textImageSize);
+
+  //FIXME : How to prevent creating oversize texture?
+  textImageSize.x = std::min(textImageSize.x, 4096.0f);
+  textImageSize.y = std::min(textImageSize.y, 4096.0f);
+
+  TextCacheItem textCacheItem {
+    node.mName,
+    Texture{},
+    TextureSet{},
+    mStyle,
+    mShadowColor,
+    mShadowOffset,
+    std::vector<std::string>{},
+    mStyle.text
+  };
+
+  textCacheItem.textParameters.textWidth = static_cast<unsigned int>(textImageSize.width);
+  textCacheItem.textParameters.textHeight = static_cast<unsigned int>(textImageSize.height);
+  textCacheItem.textParameters.radius = static_cast<unsigned int>(mRadius * std::max(textImageSize.width, textImageSize.height));
+
+  textParameters.renderer = actor.GetRendererAt(0);
+
+  Shader textShader = params.mResources.mShaders[mShaderIdx].second;
+  textParameters.renderer.SetShader(textShader);
+
+  bool isRgbaColorText = false;
+  CreateTextGeometryAndTexture(textParameters, textCacheItem, isRgbaColorText);
+
+  actor.SetProperty(Actor::Property::COLOR, isRgbaColorText ? Color::WHITE : textCacheItem.textParameters.textColor);
+  actor.SetProperty(Actor::Property::SCALE, Vector3::ONE);  // Since we're baking the node size into the mesh, we need to compensate here.
+
+  params.mRegisterTextCacheItem(std::move(textCacheItem));
 }
 
 }

@@ -21,8 +21,10 @@
 #include "dali-scene-loader/public-api/customization.h"
 #include "dali-scene-loader/public-api/matrix-stack.h"
 #include "dali-scene-loader/public-api/resource-bundle.h"
+#include "dali-scene-loader/public-api/text-cache-item.h"
 
 // EXTERNAL INCLUDES
+#include "dali-toolkit/devel-api/text/text-utils-devel.h"
 #include "dali/public-api/math/quaternion.h"
 #include "dali/public-api/math/matrix.h"
 #include "dali/public-api/math/vector4.h"
@@ -149,6 +151,8 @@ public:  // TYPES
     const ResourceBundle& mResources;
     Transforms& mXforms;
 
+    TextCacheItem::Registrator mRegisterTextCacheItem;
+
   public: // output
     std::vector<ConstraintRequest> mConstrainables;
     std::vector<SkinningShaderConfigurationRequest> mSkinnables;
@@ -270,6 +274,23 @@ public: // METHODS
   static void GetEndVectorWithDiffAngle(float startAngle, float endAngle, Vector2& endVector);
 
   void OnCreate(const NodeDefinition& node, NodeDefinition::CreateParams& params, Actor& actor) const override;
+};
+
+/**
+ * @brief Parameters for a Text Node.
+ */
+class DALI_SCENE_LOADER_API TextNode : public NodeDefinition::Renderable
+{
+public:
+  void OnCreate(const NodeDefinition& node, NodeDefinition::CreateParams& params, Actor& actor) const override;
+
+public: // DATA
+  std::string mInternationalizationTextCode;
+
+  Toolkit::DevelText::RendererParameters mStyle;
+  Vector4 mShadowColor = Color::BLACK;
+  Vector2 mShadowOffset = Vector2::ZERO;
+  float mRadius = 0.f;
 };
 
 }
